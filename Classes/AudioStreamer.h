@@ -20,6 +20,7 @@
 //  3. This notice may not be removed or altered from any source
 //     distribution.
 //
+#define SHOUTCAST_METADATA
 
 #if TARGET_OS_IPHONE			
 #import <UIKit/UIKit.h>
@@ -106,9 +107,16 @@ typedef enum
 } AudioStreamerErrorCode;
 
 extern NSString * const ASStatusChangedNotification;
+extern NSString * const ASPresentAlertWithTitleNotification;
+#ifdef SHOUTCAST_METADATA
+extern NSString * const ASUpdateMetadataNotification;
+#endif
 
 @interface AudioStreamer : NSObject
 {
+#if TARGET_OS_IPHONE    
+	UIBackgroundTaskIdentifier bgTaskId;
+#endif    
 	NSURL *url;
 
 	//
@@ -167,6 +175,15 @@ extern NSString * const ASStatusChangedNotification;
 	double lastProgress;		// last calculated progress point
 #if TARGET_OS_IPHONE
 	BOOL pausedByInterruption;
+#endif
+#ifdef SHOUTCAST_METADATA
+	BOOL foundIcyStart;
+	BOOL foundIcyEnd;
+	BOOL parsedHeaders;
+	unsigned int metaDataInterval;					// how many data bytes between meta data
+	unsigned int metaDataBytesRemaining;	// how many bytes of metadata remain to be read
+	unsigned int dataBytesRead;							// how many bytes of data have been read
+	NSMutableString *metaDataString;			// the metaDataString
 #endif
 }
 
