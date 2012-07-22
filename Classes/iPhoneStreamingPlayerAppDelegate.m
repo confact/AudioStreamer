@@ -26,6 +26,8 @@
 
 @implementation iPhoneStreamingPlayerAppDelegate
 
+@synthesize streamer;
+
 @synthesize window;
 @synthesize viewController;
 

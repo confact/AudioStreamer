@@ -22,16 +22,18 @@
 //
 
 #import <UIKit/UIKit.h>
-
-@class iPhoneStreamingPlayerViewController;
-
+#import "AudioStreamer.h"
+#import "iPhoneStreamingPlayerViewController.h"
+@class AudioStreamer;
 @interface iPhoneStreamingPlayerAppDelegate : NSObject <UIApplicationDelegate> {
     UIWindow *window;
     iPhoneStreamingPlayerViewController *viewController;
+    AudioStreamer *streamer;
 }
 
 @property (nonatomic, retain) IBOutlet UIWindow *window;
 @property (nonatomic, retain) IBOutlet iPhoneStreamingPlayerViewController *viewController;
+@property (nonatomic, retain) AudioStreamer *streamer;
 
 @end
 

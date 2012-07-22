@@ -22,6 +22,7 @@
 //
 
 #import "iPhoneStreamingPlayerViewController.h"
+#import "iPhoneStreamingPlayerAppDelegate.h"
 #import "AudioStreamer.h"
 #import <QuartzCore/CoreAnimation.h>
 #import <MediaPlayer/MediaPlayer.h>
@@ -67,18 +68,19 @@
 //
 - (void)destroyStreamer
 {
-	if (streamer)
+    iPhoneStreamingPlayerAppDelegate *appdelegate = (iPhoneStreamingPlayerAppDelegate *)[[UIApplication sharedApplication] delegate];
+	if (appdelegate.streamer != nil)
 	{
 		[[NSNotificationCenter defaultCenter]
 			removeObserver:self
 			name:ASStatusChangedNotification
-			object:streamer];
+			object:appdelegate.streamer];
 		[progressUpdateTimer invalidate];
 		progressUpdateTimer = nil;
 		
-		[streamer stop];
-		[streamer release];
-		streamer = nil;
+		[appdelegate.streamer stop];
+		[appdelegate.streamer release];
+		appdelegate.streamer = nil;
 	}
 }
 
@@ -89,10 +91,7 @@
 //
 - (void)createStreamer
 {
-	if (streamer)
-	{
-		return;
-	}
+    iPhoneStreamingPlayerAppDelegate *appdelegate = (iPhoneStreamingPlayerAppDelegate *)[[UIApplication sharedApplication] delegate];
 
 	[self destroyStreamer];
 	
@@ -106,7 +105,7 @@
 		autorelease];
 
 	NSURL *url = [NSURL URLWithString:escapedValue];
-	streamer = [[AudioStreamer alloc] initWithURL:url];
+	appdelegate.streamer = [[AudioStreamer alloc] initWithURL:url];
 	
 	progressUpdateTimer =
 		[NSTimer
@@ -119,7 +118,7 @@
 		addObserver:self
 		selector:@selector(playbackStateChanged:)
 		name:ASStatusChangedNotification
-		object:streamer];
+		object:appdelegate.streamer];
 }
 
 //
@@ -200,17 +199,18 @@
 //
 - (IBAction)buttonPressed:(id)sender
 {
+    iPhoneStreamingPlayerAppDelegate *appdelegate = (iPhoneStreamingPlayerAppDelegate *)[[UIApplication sharedApplication] delegate];
 	if ([currentImageName isEqual:@"playbutton.png"])
 	{
 		[downloadSourceField resignFirstResponder];
 		
 		[self createStreamer];
 		[self setButtonImageNamed:@"loadingbutton.png"];
-		[streamer start];
+		[appdelegate.streamer start];
 	}
 	else
 	{
-		[streamer stop];
+		[appdelegate.streamer stop];
 	}
 }
 
@@ -224,10 +224,11 @@
 //
 - (IBAction)sliderMoved:(UISlider *)aSlider
 {
-	if (streamer.duration)
+    iPhoneStreamingPlayerAppDelegate *appdelegate = (iPhoneStreamingPlayerAppDelegate *)[[UIApplication sharedApplication] delegate];
+	if (appdelegate.streamer.duration)
 	{
-		double newSeekTime = (aSlider.value / 100.0) * streamer.duration;
-		[streamer seekToTime:newSeekTime];
+		double newSeekTime = (aSlider.value / 100.0) * appdelegate.streamer.duration;
+		[appdelegate.streamer seekToTime:newSeekTime];
 	}
 }
 
@@ -239,15 +240,16 @@
 //
 - (void)playbackStateChanged:(NSNotification *)aNotification
 {
-	if ([streamer isWaiting])
+    iPhoneStreamingPlayerAppDelegate *appdelegate = (iPhoneStreamingPlayerAppDelegate *)[[UIApplication sharedApplication] delegate];
+	if ([appdelegate.streamer isWaiting])
 	{
 		[self setButtonImageNamed:@"loadingbutton.png"];
 	}
-	else if ([streamer isPlaying])
+	else if ([appdelegate.streamer isPlaying])
 	{
 		[self setButtonImageNamed:@"stopbutton.png"];
 	}
-	else if ([streamer isIdle])
+	else if ([appdelegate.streamer isIdle])
 	{
 		[self destroyStreamer];
 		[self setButtonImageNamed:@"playbutton.png"];
@@ -262,10 +264,11 @@
 //
 - (void)updateProgress:(NSTimer *)updatedTimer
 {
-	if (streamer.bitRate != 0.0)
+    iPhoneStreamingPlayerAppDelegate *appdelegate = (iPhoneStreamingPlayerAppDelegate *)[[UIApplication sharedApplication] delegate];
+	if (appdelegate.streamer.bitRate != 0.0)
 	{
-		double progress = streamer.progress;
-		double duration = streamer.duration;
+		double progress = appdelegate.streamer.progress;
+		double duration = appdelegate.streamer.duration;
 		
 		if (duration > 0)
 		{

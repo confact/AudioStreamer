@@ -24,10 +24,14 @@
 
 #if TARGET_OS_IPHONE			
 #import <UIKit/UIKit.h>
+#ifndef kCFCoreFoundationVersionNumber_iPhoneOS_4_0
+#define kCFCoreFoundationVersionNumber_iPhoneOS_4_0 550.32
+#endif
 #else
 #import <Cocoa/Cocoa.h>
-#endif // TARGET_OS_IPHONE
+#endif TARGET_OS_IPHONE			
 
+#import <Foundation/Foundation.h>
 #include <pthread.h>
 #include <AudioToolbox/AudioToolbox.h>
 
@@ -139,7 +143,6 @@ extern NSString * const ASUpdateMetadataNotification;
 	bool inuse[kNumAQBufs];			// flags to indicate that a buffer is still in use
 	NSInteger buffersUsed;
 	NSDictionary *httpHeaders;
-	NSString *fileExtension;
 	
 	AudioStreamerState state;
 	AudioStreamerStopReason stopReason;
@@ -173,9 +176,13 @@ extern NSString * const ASUpdateMetadataNotification;
 								// time)
 	double packetDuration;		// sample rate times frames per packet
 	double lastProgress;		// last calculated progress point
+	UInt32 numberOfChannels;	// Number of audio channels in the stream (1 = mono, 2 = stereo)
+        BOOL vbr; 			// indicates VBR (or not) stream
+
 #if TARGET_OS_IPHONE
-	BOOL pausedByInterruption;
+        BOOL pausedByInterruption;
 #endif
+
 #ifdef SHOUTCAST_METADATA
 	BOOL foundIcyStart;
 	BOOL foundIcyEnd;
@@ -189,11 +196,15 @@ extern NSString * const ASUpdateMetadataNotification;
 
 @property AudioStreamerErrorCode errorCode;
 @property (readonly) AudioStreamerState state;
+@property (readonly) AudioStreamerStopReason stopReason;
 @property (readonly) double progress;
+@property (readonly) double bufferFillLevel;
 @property (readonly) double duration;
 @property (readwrite) UInt32 bitRate;
 @property (readonly) NSDictionary *httpHeaders;
-@property (copy,readwrite) NSString *fileExtension;
+@property (readonly) UInt32 numberOfChannels;
+@property (assign, getter=isMeteringEnabled) BOOL meteringEnabled;
+@property (readonly) BOOL vbr;
 
 - (id)initWithURL:(NSURL *)aURL;
 - (void)start;
@@ -205,6 +216,11 @@ extern NSString * const ASUpdateMetadataNotification;
 - (BOOL)isIdle;
 - (void)seekToTime:(double)newSeekTime;
 - (double)calculatedBitRate;
+
+// level metering
+- (float)peakPowerForChannel:(NSUInteger)channelNumber;
+- (float)averagePowerForChannel:(NSUInteger)channelNumber;
+
 
 @end
 

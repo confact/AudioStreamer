@@ -22,9 +22,8 @@
 //
 
 #import <UIKit/UIKit.h>
-
+#import "AudioStreamer.h"
 @class AudioStreamer;
-
 @interface iPhoneStreamingPlayerViewController : UIViewController
 {
 	IBOutlet UITextField *downloadSourceField;
@@ -32,7 +31,6 @@
 	IBOutlet UIView *volumeSlider;
 	IBOutlet UILabel *positionLabel;
 	IBOutlet UISlider *progressSlider;
-	AudioStreamer *streamer;
 	NSTimer *progressUpdateTimer;
 	NSString *currentImageName;
 }
@@ -41,6 +39,8 @@
 - (void)spinButton;
 - (void)updateProgress:(NSTimer *)aNotification;
 - (IBAction)sliderMoved:(UISlider *)aSlider;
+- (void)destroyStreamer;
+- (void)createStreamer;
 
 @end
 
