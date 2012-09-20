@@ -22,9 +22,10 @@
 //
 
 #import "AudioStreamer.h"
-#import "iPhoneStreamingPlayerAppDelegate.h"
+#import "RadioLyssnarenAppDelegate.h"
 #if TARGET_OS_IPHONE			
 #import <CFNetwork/CFNetwork.h>
+#import "UIDevice+Hardware.h"
 #endif
 
 #define BitRateEstimationMaxPackets 6000
@@ -110,23 +111,54 @@ void MyAudioSessionInterruptionListener(void *inClientData, UInt32 inInterruptio
 void audioRouteChangeListenerCallback (void *inUserData, AudioSessionPropertyID inPropertyID, UInt32                 inPropertyValueSize, const void *inPropertyValue);
 
 void audioRouteChangeListenerCallback( void *inUserData, AudioSessionPropertyID inPropertyID, UInt32                 inPropertyValueSize, const void *inPropertyValue) {
-	iPhoneStreamingPlayerAppDelegate *appDelegate = (iPhoneStreamingPlayerAppDelegate *)[[UIApplication sharedApplication] delegate];
-    if (inPropertyID != kAudioSessionProperty_AudioRouteChange)
-        return;
+	
+    if (inPropertyID != kAudioSessionProperty_AudioRouteChange) return;
+	
+	RadioLyssnarenAppDelegate *appDelegate = (RadioLyssnarenAppDelegate *)[[UIApplication sharedApplication] delegate];
 	
     if (appDelegate.streamer != nil && !appDelegate.streamer.isPlaying) {
-        return;
-    } else {
-        CFDictionaryRef routeChangeDictionary = inPropertyValue;
-        CFNumberRef routeChangeReasonRef =
-		CFDictionaryGetValue (routeChangeDictionary,CFSTR (kAudioSession_AudioRouteChangeKey_Reason));
-        SInt32 routeChangeReason;
-        CFNumberGetValue (routeChangeReasonRef, kCFNumberSInt32Type, &routeChangeReason);
 		
-        if (routeChangeReason == kAudioSessionRouteChangeReason_OldDeviceUnavailable) {
+        return;
+		
+    } else {
+		
+        CFDictionaryRef routeChangeDictionary = inPropertyValue;
+		
+        CFNumberRef routeChangeReasonRef =
+		
+		CFDictionaryGetValue (
+							  
+							  routeChangeDictionary,
+							  
+							  CFSTR (kAudioSession_AudioRouteChangeKey_Reason)
+							  
+							  );
+		
+		
+		
+        SInt32 routeChangeReason;
+		
+        CFNumberGetValue (
+						  
+						  routeChangeReasonRef, kCFNumberSInt32Type, &routeChangeReason
+						  
+						  );
+		
+		
+		
+        if (routeChangeReason ==
+			
+			kAudioSessionRouteChangeReason_OldDeviceUnavailable) {
+			
+			
+			
             [appDelegate.streamer stop];
+			[appDelegate.detailView forceUIUpdate];
+			
         }
+		
     }
+	
 }
 #endif
 
@@ -174,7 +206,7 @@ void MyPacketsProc(				void *							inClientData,
 								AudioStreamPacketDescription	*inPacketDescriptions)
 {
 	// this is called by audio file stream when it finds packets of audio
-	AudioStreamer* streamer = (__bridge AudioStreamer *)inClientData;
+	AudioStreamer* streamer = (AudioStreamer *)inClientData;
 	[streamer
 		handleAudioPackets:inInputData
 		numberBytes:inNumberBytes
@@ -197,7 +229,7 @@ void MyAudioQueueOutputCallback(	void*					inClientData,
 {
 	// this is called by the audio queue when it has finished decoding our data. 
 	// The buffer is now free to be reused.
-	AudioStreamer* streamer = (__bridge AudioStreamer*)inClientData;
+	AudioStreamer* streamer = (AudioStreamer*)inClientData;
 	[streamer handleBufferCompleteForQueue:inAQ buffer:inBuffer];
 }
 
@@ -210,7 +242,7 @@ void MyAudioQueueOutputCallback(	void*					inClientData,
 //
 void MyAudioQueueIsRunningCallback(void *inUserData, AudioQueueRef inAQ, AudioQueuePropertyID inID)
 {
-	AudioStreamer* streamer = (__bridge AudioStreamer *)inUserData;
+	AudioStreamer* streamer = (AudioStreamer *)inUserData;
 	[streamer handlePropertyChangeForQueue:inAQ propertyID:inID];
 }
 
@@ -224,6 +256,7 @@ void MyAudioSessionInterruptionListener(void *inClientData, UInt32 inInterruptio
 {
 	//AudioStreamer* streamer = (AudioStreamer *)inClientData;
 	//[streamer handleInterruptionChangeToState:inInterruptionState];
+	NSLog([[NSString alloc] initWithFormat:@"interruption with state: %li",inInterruptionState]);
 	[__streamer handleInterruptionChangeToState:inInterruptionState];
 }
 #endif
@@ -245,7 +278,7 @@ void ASReadStreamCallBack
    void* inClientInfo
 )
 {
-	AudioStreamer* streamer = (__bridge AudioStreamer *)inClientInfo;
+	AudioStreamer* streamer = (AudioStreamer *)inClientInfo;
 	[streamer handleReadFromStream:aStream eventType:eventType];
 }
 
@@ -269,12 +302,27 @@ void ASReadStreamCallBack
 	self = [super init];
 	if (self != nil)
 	{
-		url = aURL;
+		url = [aURL retain];
 #ifdef SHOUTCAST_METADATA
 		metaDataString = [[NSMutableString alloc] initWithString:@""];
 #endif
 	}
 	return self;
+}
+
+//
+// dealloc
+//
+// Releases instance memory.
+//
+- (void)dealloc
+{
+	[self stop];
+	[url release];
+#ifdef SHOUTCAST_METADATA
+	[metaDataString release];
+#endif
+	[super dealloc];
 }
 
 //
@@ -693,7 +741,7 @@ void ASReadStreamCallBack
 		//
 		// Create the HTTP GET request
 		//
-		CFHTTPMessageRef message= CFHTTPMessageCreateRequest(NULL, (CFStringRef)@"GET", url, kCFHTTPVersion1_1);
+		CFHTTPMessageRef message= CFHTTPMessageCreateRequest(NULL, (CFStringRef)@"GET", (CFURLRef)url, kCFHTTPVersion1_1);
 #ifdef SHOUTCAST_METADATA
 		CFHTTPMessageSetHeaderFieldValue(message, CFSTR("icy-metadata"), CFSTR("1"));
 #endif
@@ -704,7 +752,7 @@ void ASReadStreamCallBack
 		if (fileLength > 0 && seekByteOffset > 0)
 		{
 			CFHTTPMessageSetHeaderFieldValue(message, CFSTR("Range"),
-				(__bridge CFStringRef)[NSString stringWithFormat:@"bytes=%ld-%ld", seekByteOffset, fileLength - 1]);
+				(CFStringRef)[NSString stringWithFormat:@"bytes=%ld-%ld", seekByteOffset, fileLength - 1]);
 			discontinuous = vbr;
 		}
 		
@@ -749,7 +797,7 @@ void ASReadStreamCallBack
 					[NSNull null], kCFStreamSSLPeerName,
 				nil];
 
-			CFReadStreamSetProperty(stream, kCFStreamPropertySSLSettings, (__bridge CFTypeRef)(sslSettings));
+			CFReadStreamSetProperty(stream, kCFStreamPropertySSLSettings, sslSettings);
 		}
 		
 		//
@@ -771,7 +819,7 @@ void ASReadStreamCallBack
 		//
 		// Set our callback function to receive the data
 		//
-		CFStreamClientContext context = {0, (__bridge void *)(self), NULL, NULL, NULL};
+		CFStreamClientContext context = {0, self, NULL, NULL, NULL};
 		CFReadStreamSetClient(
 			stream,
 			kCFStreamEventHasBytesAvailable | kCFStreamEventErrorOccurred | kCFStreamEventEndEncountered,
@@ -810,6 +858,7 @@ void ASReadStreamCallBack
 //
 - (void)startInternal
 {
+	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 
 	@synchronized(self)
 	{
@@ -821,6 +870,7 @@ void ASReadStreamCallBack
 				NSLog(@"### Not starting audio thread. State code is: %u", state);
 			}
 			self.state = AS_INITIALIZED;
+			[pool release];
 			return;
 		}
 		
@@ -941,6 +991,7 @@ cleanup:
 		AudioSessionSetActive(false);
 #endif
 
+		[httpHeaders release];
 		httpHeaders = nil;
 
 		bytesFilled = 0;
@@ -949,8 +1000,11 @@ cleanup:
 		packetBufferSize = 0;
 		self.state = AS_INITIALIZED;
 
+		[internalThread release];
 		internalThread = nil;
 	}
+
+	[pool release];
 }
 
 //
@@ -971,7 +1025,7 @@ cleanup:
 			NSAssert([[NSThread currentThread] isEqual:[NSThread mainThread]],
 				@"Playback can only be started from the main thread.");
 			notificationCenter =
-				[NSNotificationCenter defaultCenter];
+				[[NSNotificationCenter defaultCenter] retain];
 			self.state = AS_STARTING_FILE_THREAD;
 			internalThread =
 				[[NSThread alloc]
@@ -1458,7 +1512,7 @@ cleanup:
 				[AudioStreamer hintForMIMEType:[httpHeaders objectForKey:@"Content-Type"]];
 
 			// create an audio file stream parser
-			err = AudioFileStreamOpen((__bridge void *)(self), MyPropertyListenerProc, MyPacketsProc, 
+			err = AudioFileStreamOpen(self, MyPropertyListenerProc, MyPacketsProc, 
 									fileTypeHint, &audioFileStream);
 			if (err)
 			{
@@ -1513,7 +1567,7 @@ cleanup:
 				if (statusCode == 200)		// "OK" (this is true even for ICY)
 				{
 					// check if this is a ICY 200 OK response
-					NSString *icyCheck = [[NSString alloc] initWithBytes:bytes length:10 encoding:NSUTF8StringEncoding];
+					NSString *icyCheck = [[[NSString alloc] initWithBytes:bytes length:10 encoding:NSUTF8StringEncoding] autorelease];
 					//NSLog(@"stream bytes %@", [NSString stringWithCString:bytes length:length]); // dataWithBytes:bytes length:1024]);
 					if (icyCheck != nil && [icyCheck caseInsensitiveCompare:@"ICY 200 OK"] == NSOrderedSame)	
 					{
@@ -1524,7 +1578,7 @@ cleanup:
 					{
 						// is Live365?
 						// get all the headers
-						NSDictionary *reqHeaders = (__bridge NSDictionary *)CFHTTPMessageCopyAllHeaderFields(myResponse);
+						NSDictionary *reqHeaders = [(NSDictionary *)CFHTTPMessageCopyAllHeaderFields(myResponse) autorelease];
 						//NSLog(@"reqHeaders: %@", reqHeaders);
 						NSString *serverHeader = [reqHeaders valueForKey:@"Server"];
 						if (serverHeader != nil && NSEqualRanges([serverHeader rangeOfString:@"Nanocaster"], NSMakeRange(0, 10))) {
@@ -1543,9 +1597,9 @@ cleanup:
 							NSString *metaInt;
 							NSString *contentType;
 							NSString *icyBr;
-							metaInt = (__bridge NSString *) CFHTTPMessageCopyHeaderFieldValue(myResponse, CFSTR("Icy-Metaint"));
-							contentType = (__bridge NSString *) CFHTTPMessageCopyHeaderFieldValue(myResponse, CFSTR("Content-Type"));
-							icyBr = (__bridge NSString *) CFHTTPMessageCopyHeaderFieldValue(myResponse, CFSTR("icy-br"));
+							metaInt = (NSString *) CFHTTPMessageCopyHeaderFieldValue(myResponse, CFSTR("Icy-Metaint"));
+							contentType = (NSString *) CFHTTPMessageCopyHeaderFieldValue(myResponse, CFSTR("Content-Type"));
+							icyBr = (NSString *) CFHTTPMessageCopyHeaderFieldValue(myResponse, CFSTR("icy-br"));
 							/*if (contentType) 
 							{
 								// only if we haven't already set a content-type
@@ -2090,6 +2144,7 @@ cleanup:
 			{
 				AudioStreamBasicDescription pasbd = formatList[i].mASBD;
 				if(pasbd.mFormatID == kAudioFormatMPEG4AAC_HE_V2 && 
+				   [[UIDevice currentDevice] platformHasCapability:(UIDeviceSupportsARMV7)] && 
 				   kCFCoreFoundationVersionNumber >= kCFCoreFoundationVersionNumber_iPhoneOS_4_0)
 				{
 					// We found HE-AAC v2 (SBR+PS), but before trying to play it
@@ -2135,7 +2190,10 @@ cleanup:
 //    inNumberPackets - number of packets in the data
 //    inPacketDescriptions - packet descriptions
 //
-- (void)handleAudioPackets:(const void *)inInputData numberBytes:(UInt32)inNumberBytes numberPackets:(UInt32)inNumberPackets packetDescriptions:(AudioStreamPacketDescription *)inPacketDescriptions
+- (void)handleAudioPackets:(const void *)inInputData
+	numberBytes:(UInt32)inNumberBytes
+	numberPackets:(UInt32)inNumberPackets
+	packetDescriptions:(AudioStreamPacketDescription *)inPacketDescriptions;
 {
 	@synchronized(self)
 	{
